@@ -32,7 +32,21 @@ int main(){
     complex<double>* S1_p = S1; complex<double>* S2_p = S2;
 
     bhmie(x, refrel, nang, Qscat_p, Qext_p, Qback_p, S1_p, S2_p);
-    cout << S1_p[2] << endl;
+
+    cout << Qscat << endl;
+    cout << Qext << endl;
+    cout << Qback << endl;
+    cout << "S1 = " << endl;
+
+    for (int i = 1; i<=2*nang-1; i++){
+      cout << S1[i] << endl;
+    }
+
+    cout << "S2 = " << endl;
+
+    for (int i = 1; i<=2*nang-1; i++){
+      cout << S2[i] << endl;
+    }
 
     return 0;
 }
@@ -171,7 +185,7 @@ int bhmie(double x,double refrel,int nang, double* Qscat_p, double* Qext_p, doub
     }
 
     for (int i=1; i<=nang*2; i++){
-      S2_p[i] = S1[i];
+      S2_p[i] = S2[i];
     }
 
     return 0;
