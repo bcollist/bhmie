@@ -9,7 +9,7 @@ using namespace std;
 
 // Global Variable Prototypes
 double pi = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
-complex <double> imaginary = sqrt(complex<double>(-1,0));
+complex <double> imaginary = sqrt(complex<double>(-1,0)); // initialize an imaginary number
 
 // Function Prototypes
 int bhmie(double x,double refrel,int nang, double* Qscat_p, double* Qext_p, double* Qback_p, complex<double>* S1_p, complex<double>* S2_p);
@@ -20,33 +20,82 @@ int main(){
 
     // Variables //
 
-    // User Inputs
-    double x = 2; // size parameter
-    double refrel = 1.33;//(1.3, 0.008); // relative refractive index
-    int nang = 91; // number of angles between
+    // User Inputs //
 
+    // Refractive Index
+    double refMed = 1.33;
+    double refPart = 1.45;//(1.3, 0.008); // relative refractive index
+    double refRel = refPart/refMed;
+
+    // Wavelength
+    double lambda = 0.532; // lidar wavelength in a vaccuum (um)
+    double lambdaMed = lambda/refMed; // Lidar Wavelength in Medium (um)
+    double kMed = 2*pi/lambdaMed; // Lidar wavenumber in Medium;
+
+    // Angles
+    int nang = 91; // number of angles between 0-90
+    int nang1 = nang*2-1; // number of angles 0-180
+
+    // Particle Size Distribution Parameters
+
+    // Set PSD parameters
+    double Dmin = 0.1; // minimum particle diameter (um);
+    double Dmax = 150.0; // maximum particle diameter (um);
+    int diamBin = 100; // # of diameter bins;
+    double fac = pow((Dmax/Dmin),(1.0/(diamBin-1.0))); // exponential factor necessary for defining logarithmically spaced diameter bins
+
+    // Initialize Particle Size Arrays
+    double D[(int)diamBin]; double r[(int)diamBin]; double sizeParam[(int)diamBin]; double diffNumDistribution[(int)diamBin];
+
+    // Set PSD array values
+
+    // Diameter Array
+    for (int i; i<diamBin; i++){ // generate an array of particle diameters
+      D[i]=Dmin*pow(fac,(i)); // define the diameter bins
+    }
+    // Radius Array
+    for (int i; i<diamBin; i++){ // generate an array of particle diameters
+      r[i]=D[i]/2; // define the diameter bins
+    }
+    // Size Parameter Array
+    for (int i; i<diamBin; i++){ // generate an array of size parameters
+      sizeParam[i] = 2*pi*r[i]*refMed / lambda; // mie theory size parameter
+    }
+
+    // Define Mie Output Variables and Pointers
     double Qscat; double Qext; double Qback;  // Mie scattering efficiencies
     double* Qscat_p = &Qscat; double* Qext_p = &Qext; double* Qback_p = &Qback; // pointers to Mie Scattering efficiencies
 
     complex<double> S1[2*nang]; complex<double> S2[2*nang];
     complex<double>* S1_p = S1; complex<double>* S2_p = S2;
 
-    bhmie(x, refrel, nang, Qscat_p, Qext_p, Qback_p, S1_p, S2_p);
+    // Define Distribution //
+    double k = 5E18; // differential number concentration at particle size D0
 
-    cout << Qscat << endl;
-    cout << Qext << endl;
-    cout << Qback << endl;
-    cout << "S1 = " << endl;
+    double jungeSlope = 4.0; // slope of the junge distribution
 
-    for (int i = 1; i<=2*nang-1; i++){
-      cout << S1[i] << endl;
+    for (int i; i<diamBin; i++){
+      diffNumDistribution[i] = k*pow((D[i]/D[0]),(-1*jungeSlope)); // # of particles m^-3 um^-1
+      cout << diffNumDistribution[i] << endl;
+
     }
 
-    cout << "S2 = " << endl;
+    //bhmie(x, refrel, nang, Qscat_p, Qext_p, Qback_p, S1_p, S2_p);
 
-    for (int i = 1; i<=2*nang-1; i++){
-      cout << S2[i] << endl;
-    }
+    // cout << Qscat << endl;
+    // cout << Qext << endl;
+    // cout << Qback << endl;
+    // cout << "S1 = " << endl;
+    //
+    // for (int i = 1; i<=2*nang-1; i++){
+    //   cout << S1[i] << endl;
+    // }
+    //
+    // cout << "S2 = " << endl;
+    //
+    // for (int i = 1; i<=2*nang-1; i++){
+    //   cout << S2[i] << endl;
+    // }
 
     return 0;
 }
