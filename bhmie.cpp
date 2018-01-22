@@ -91,7 +91,7 @@ int bhmie(double x,double refrel,int nang){
 
     for (int j = 1; j <= nang; j++){
         S1[j] = 0.0;
-        S2[j] = 1.0;
+        S2[j] = 0.0;
     }
 
     //Riccati-Bessel functins with real argument x calculated by upward recurence

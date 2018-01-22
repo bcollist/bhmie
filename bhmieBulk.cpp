@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iostream>
 #include <complex>
+#include <armadillo>
 
 using namespace std;
 
@@ -45,7 +46,7 @@ int main(){
     double fac = pow((Dmax/Dmin),(1.0/(diamBin-1.0))); // exponential factor necessary for defining logarithmically spaced diameter bins
 
     // Initialize Particle Size Arrays
-    double D[(int)diamBin]; double r[(int)diamBin]; double sizeParam[(int)diamBin]; double diffNumDistribution[(int)diamBin];
+    double D[diamBin]; double r[diamBin]; double sizeParam[diamBin]; double diffNumDistribution[diamBin];
 
     // Set PSD array values
 
@@ -69,6 +70,12 @@ int main(){
     complex<double> S1[2*nang]; complex<double> S2[2*nang];
     complex<double>* S1_p = S1; complex<double>* S2_p = S2;
 
+    // Mueller Matrix elements
+    double s11[2*nang][diamBin];
+    double s12[2*nang][diamBin];
+    double s33[2*nang][diamBin];
+    double s34[2*nang][diamBin];
+
     // Define Distribution //
     double k = 5E18; // differential number concentration at particle size D0
 
@@ -76,9 +83,26 @@ int main(){
 
     for (int i; i<diamBin; i++){
       diffNumDistribution[i] = k*pow((D[i]/D[0]),(-1*jungeSlope)); // # of particles m^-3 um^-1
-      cout << diffNumDistribution[i] << endl;
-
     }
+
+    // Mie Calculations for Each Size Parameter in the distribution
+    //j+1 is used to convert from fortran indexing to c++indexing
+    for (int i; i<diamBin; i++){
+      bhmie(sizeParam[i],refRel,nang,Qscat_p, Qext_p, Qback_p, S1_p, S2_p);
+      for (int j; j<2*nang-1; j++){
+        s11[j][i] = 0.5 * (pow(abs(S2[j+1]),2) + pow(abs(S1[j+1]),2));
+        s12[j][i] = 0.5 * (pow(abs(S2[j+1]),2) - pow(abs(S1[j+1]),2));
+        s33[j][i] = real(S1[j+1]*conj(S2[j+1]));
+        s34[j][i] = imag(S2[j+1]*conj(S1[j+1]));
+      }
+    }
+
+
+
+
+
+
+
 
     //bhmie(x, refrel, nang, Qscat_p, Qext_p, Qback_p, S1_p, S2_p);
 
@@ -106,7 +130,7 @@ int main(){
 //// Function Definitions
 //
 //
-int bhmie(double x,double refrel,int nang, double* Qscat_p, double* Qext_p, double* Qback_p, complex<double>* S1_p, complex<double>* S2_p){
+int bhmie(double x, double refrel, int nang, double* Qscat_p, double* Qext_p, double* Qback_p, complex<double>* S1_p, complex<double>* S2_p){
 
     // Variable Definitions
     complex<double> y; double dx; double nstop; double ymod; int nmx; double dang; double theta;
@@ -160,7 +184,7 @@ int bhmie(double x,double refrel,int nang, double* Qscat_p, double* Qext_p, doub
 
     for (int j = 1; j <= nang; j++){
         S1[j] = 0.0;
-        S2[j] = 1.0;
+        S2[j] = 0.0;
     }
 
     //Riccati-Bessel functins with real argument x calculated by upward recurence
@@ -236,6 +260,5 @@ int bhmie(double x,double refrel,int nang, double* Qscat_p, double* Qext_p, doub
     for (int i=1; i<=nang*2; i++){
       S2_p[i] = S2[i];
     }
-
     return 0;
 }
