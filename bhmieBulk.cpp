@@ -4,7 +4,6 @@
 #include <cmath>
 #include <iostream>
 #include <complex>
-#include <armadillo>
 
 using namespace std;
 
@@ -116,13 +115,14 @@ int main(){
       }
     }
 
+
     // Define integrand to calculate bulk mueller atrix properties
     for (int i=0; i<diamBin; i++){
       for (int j=0; j<2*nang-1; j++){
-        integrandS11[j][i] = diffNumDistribution[i] * s11[j][i];
-        integrandS12[j][i] = diffNumDistribution[i] * s12[j][i];
-        integrandS33[j][i] = diffNumDistribution[i] * s33[j][i];
-        integrandS34[j][i] = diffNumDistribution[j] * s34[j][i];
+        integrandS11[j][i] = diffNumDistribution[i] * s11[j][i]; // good
+        integrandS12[j][i] = diffNumDistribution[i] * s12[j][i]; // good
+        integrandS33[j][i] = diffNumDistribution[i] * s33[j][i]; // good
+        integrandS34[j][i] = diffNumDistribution[i] * s34[j][i]; // good
     }
   }
     // Checked throught here. SOmething May be wrong with the way you are doing things below
@@ -133,16 +133,12 @@ int main(){
         integrandArray12[j] = integrandS12[i][j];
         integrandArray33[j] = integrandS33[i][j];
         integrandArray34[j] = integrandS34[i][j];
-        // if (i==0){
-        //   cout << integrandS12[0][j] << endl;
-        //   cout << integrandArray12[j] << endl;
-        //  }
+
       }
       s11bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray11,diamBin);
       s12bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray12,diamBin);
       s33bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray33,diamBin);
       s34bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray34,diamBin);
-      cout << s12bar[i]<< endl;
     }
 
 
