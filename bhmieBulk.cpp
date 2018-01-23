@@ -13,8 +13,8 @@ double pi = 3.141592653589793238462643383279502884197169399375105820974944592307
 complex <double> imaginary = sqrt(complex<double>(-1,0)); // initialize an imaginary number
 
 // Function Prototypes
-int bhmie(double x,double refrel,int nang, double* Qscat_p, double* Qext_p, double* Qback_p, complex<double>* S1_p, complex<double>* S2_p);
-
+int bhmie(double x,double refrel,int nang, double* Qscat_p, double* Qext_p, double* Qback_p, complex<double>* S1_p, complex<double>* S2_p, double* diffPoint);
+double trapz(double x[], double y[], int size);
 
 // Main Function
 int main(){
@@ -46,7 +46,9 @@ int main(){
     double fac = pow((Dmax/Dmin),(1.0/(diamBin-1.0))); // exponential factor necessary for defining logarithmically spaced diameter bins
 
     // Initialize Particle Size Arrays
-    double D[diamBin]; double r[diamBin]; double sizeParam[diamBin]; double diffNumDistribution[diamBin];
+    double D[diamBin]; double r[diamBin]; double sizeParam[diamBin];
+    double diffNumDistribution[diamBin];
+    double* diffPoint = &diffNumDistribution[0];
 
     // Set PSD array values
 
@@ -71,31 +73,89 @@ int main(){
     complex<double>* S1_p = S1; complex<double>* S2_p = S2;
 
     // Mueller Matrix elements
-    double s11[2*nang][diamBin];
-    double s12[2*nang][diamBin];
-    double s33[2*nang][diamBin];
-    double s34[2*nang][diamBin];
+    double s11[2*nang-1][diamBin];
+    double s12[2*nang-1][diamBin];
+    double s33[2*nang-1][diamBin];
+    double s34[2*nang-1][diamBin];
+
+    double integrandS11[2*nang-1][diamBin];
+    double integrandS12[2*nang-1][diamBin];
+    double integrandS33[2*nang-1][diamBin];
+    double integrandS34[2*nang-1][diamBin];
+
+    double integrandArray11[diamBin];
+    double integrandArray12[diamBin];
+    double integrandArray33[diamBin];
+    double integrandArray34[diamBin];
+
+    double s11bar[2*nang-1];
+    double s12bar[2*nang-1];
+    double s33bar[2*nang-1];
+    double s34bar[2*nang-1];
 
     // Define Distribution //
     double k = 5E18; // differential number concentration at particle size D0
 
     double jungeSlope = 4.0; // slope of the junge distribution
 
-    for (int i; i<diamBin; i++){
+    for (int i = 0; i<diamBin; i++){
       diffNumDistribution[i] = k*pow((D[i]/D[0]),(-1*jungeSlope)); // # of particles m^-3 um^-1
     }
 
+
     // Mie Calculations for Each Size Parameter in the distribution
     //j+1 is used to convert from fortran indexing to c++indexing
-    for (int i; i<diamBin; i++){
-      bhmie(sizeParam[i],refRel,nang,Qscat_p, Qext_p, Qback_p, S1_p, S2_p);
-      for (int j; j<2*nang-1; j++){
+    for (int i = 0; i<diamBin; i++){
+      bhmie(sizeParam[i],refRel,nang,Qscat_p, Qext_p, Qback_p, S1_p, S2_p, diffPoint);
+
+      for (int j = 0; j<2*nang-1; j++){
         s11[j][i] = 0.5 * (pow(abs(S2[j+1]),2) + pow(abs(S1[j+1]),2));
         s12[j][i] = 0.5 * (pow(abs(S2[j+1]),2) - pow(abs(S1[j+1]),2));
         s33[j][i] = real(S1[j+1]*conj(S2[j+1]));
         s34[j][i] = imag(S2[j+1]*conj(S1[j+1]));
       }
+
     }
+
+    // Define integrand to calculate bulk mueller atrix properties
+    for (int i=0; i<diamBin; i++){
+      for (int j=0; j<2*nang-1; j++){
+        integrandS11[j][i] = diffNumDistribution[i] * s11[j][i];
+        integrandS12[j][i] = diffNumDistribution[i] * s12[j][i];
+        integrandS33[j][i] = diffNumDistribution[i] * s33[j][i];
+        integrandS34[j][i] = diffNumDistribution[j] * s34[j][i];
+        cout << integrandS12[j][i] << endl;
+
+    }
+  }
+    // Checked throught here. SOmething May be wrong with the way you are doing things below
+    // Integrate of Size Distribution For Each Angles
+    for (int i=0; i<2*nang-1; i++){
+      for (int j=0; j<diamBin; j++){
+        integrandArray11[j] = integrandS11[i][j];
+        integrandArray12[j] = integrandS12[i][j];
+        integrandArray33[j] = integrandS33[i][j];
+        integrandArray34[j] = integrandS34[i][j];
+
+
+        // if (i==0){
+        //   cout << integrandS11[0][j] << endl;
+        //   cout << integrandArray11[j] << endl;
+        // }
+      }
+      s11bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray11,diamBin);
+      s12bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray12,diamBin);
+      s33bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray33,diamBin);
+      s34bar[i] = (1.0/(kMed*kMed))*trapz(sizeParam,integrandArray34,diamBin);
+    }
+
+
+    // for (int i=0; i<2*nang-1; i++){
+    //   cout << s12bar[i] << endl;
+    // }
+
+
+
 
 
 
@@ -130,7 +190,7 @@ int main(){
 //// Function Definitions
 //
 //
-int bhmie(double x, double refrel, int nang, double* Qscat_p, double* Qext_p, double* Qback_p, complex<double>* S1_p, complex<double>* S2_p){
+int bhmie(double x, double refrel, int nang, double* Qscat_p, double* Qext_p, double* Qback_p, complex<double>* S1_p, complex<double>* S2_p, double * diffPoint){
 
     // Variable Definitions
     complex<double> y; double dx; double nstop; double ymod; int nmx; double dang; double theta;
@@ -148,7 +208,7 @@ int bhmie(double x, double refrel, int nang, double* Qscat_p, double* Qext_p, do
 
     // Array Definitions
     double PI[nang+1]; double PI0[nang+1]; double PI1[nang+1];
-    complex<double> S1[2*nang]; complex<double> S2[2*nang];
+    complex<double> S1[2*nang+1]; complex<double> S2[2*nang+1];
     double AMU[nang+1]; double TAU[nang+1];
 
     dx = x;
@@ -240,6 +300,7 @@ int bhmie(double x, double refrel, int nang, double* Qscat_p, double* Qext_p, do
             PI0[j]=PI[j];
         }
     }
+
     Qscat_f=(2.0/(x*x))*Qscat_f;
     Qext_f=(4.0/(x*x))*real(S1[1]);
     //Note: Qback is not Qbb, but the radar back scattering.
@@ -253,12 +314,22 @@ int bhmie(double x, double refrel, int nang, double* Qscat_p, double* Qext_p, do
     *Qback_p = Qback_f; // update the value of Qback in main using a pointer
 
     // Move S1 and S2 out of the function
-    for (int i=1; i<=nang*2; i++){
+    for (int i=1; i<=nang*2-1; i++){
       S1_p[i] = S1[i];
     }
 
-    for (int i=1; i<=nang*2; i++){
+    for (int i=1; i<=nang*2-1; i++){
       S2_p[i] = S2[i];
     }
     return 0;
+}
+
+double trapz(double x[], double y[], int size){
+  double s;
+  double sTemp = 0.0;
+  for (int i = 0; i<size-1; i++){
+    sTemp = sTemp+(x[i+1]-x[i])*(y[i+1]+y[i]);
+  }
+  s = 0.5*sTemp;
+  return s;
 }
